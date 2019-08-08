@@ -1,17 +1,13 @@
-// @flow
-// import syntaxAsyncFunctions from '@babel/plugin-syntax-async-generators';
-import type {NodePath} from '@babel/traverse';
+
 import traverse from '@babel/traverse';
+// import syntaxAsyncFunctions from '@babel/plugin-syntax-async-generators';
+
 import nameFunction from '@babel/helper-function-name';
 import template from 'babel-template';
 
 import { addNamed } from '@babel/helper-module-imports';
 
-const FUNCTION_TYPES = [
-	'FunctionDeclaration',
-	'FunctionExpression',
-	'ArrowFunctionExpression',
-];
+const FUNCTION_TYPES = ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'];
 
 const BUILD_WRAPPER = template(`
 	(() => {
@@ -32,12 +28,12 @@ const NAMED_BUILD_WRAPPER = template(`
 	})
 `);
 
-export default function asyncToBluebird(pluginArg: any) {
-	const {types: t} = pluginArg;
+export default function asyncToBluebird(pluginArg) {
+	const { types: t } = pluginArg;
 
-	function classOrObjectMethod(path: NodePath, state: any, hasAwait: boolean) {
-		const {node} = path;
-		const {body} = node;
+	function classOrObjectMethod(path, state, hasAwait) {
+		const { node } = path;
+		const { body } = node;
 
 		node.async = false;
 		node.generator = false;
@@ -45,27 +41,16 @@ export default function asyncToBluebird(pluginArg: any) {
 		const container = t.functionExpression(null, [], t.blockStatement(body.body), hasAwait);
 		container.shadow = true;
 		const bbImport = addNamed(path, 'bluebird', hasAwait ? 'coroutine' : 'method');
-		body.body = [
-			t.returnStatement(
-				t.callExpression(
-					t.callExpression(
-						bbImport,
-						[container]
-					),
-					[]
-				)
-			),
-		];
+		body.body = [t.returnStatement(t.callExpression(t.callExpression(bbImport, [container]), []))];
 	}
 
-	function plainFunction(path: NodePath, state: any, hasAwait: boolean) {
-		const {node} = path;
+	function plainFunction(path, state, hasAwait) {
+		const { node } = path;
 		const isDeclaration = path.isFunctionDeclaration();
 		const asyncFnId = node.id;
 
 		let wrapper = BUILD_WRAPPER;
-		if (path.isArrowFunctionExpression()) path.arrowFunctionToShadowed();
-		else if (!isDeclaration && asyncFnId) wrapper = NAMED_BUILD_WRAPPER;
+		if (path.isArrowFunctionExpression()) path.arrowFunctionToShadowed();else if (!isDeclaration && asyncFnId) wrapper = NAMED_BUILD_WRAPPER;
 
 		node.async = false;
 		node.generator = hasAwait;
@@ -80,16 +65,11 @@ export default function asyncToBluebird(pluginArg: any) {
 			NAME: asyncFnId,
 			REF: path.scope.generateUidIdentifier('ref'),
 			FUNCTION: built,
-			PARAMS: node.params.map(() => path.scope.generateUidIdentifier('x')),
+			PARAMS: node.params.map(() => path.scope.generateUidIdentifier('x'))
 		}).expression;
 
 		if (isDeclaration) {
-			const declar = t.variableDeclaration('let', [
-				t.variableDeclarator(
-					t.identifier(asyncFnId.name),
-					t.callExpression(container, [])
-				),
-			]);
+			const declar = t.variableDeclaration('let', [t.variableDeclarator(t.identifier(asyncFnId.name), t.callExpression(container, []))]);
 			declar._blockHoist = true;
 
 			path.replaceWith(declar);
@@ -99,7 +79,7 @@ export default function asyncToBluebird(pluginArg: any) {
 				nameFunction({
 					node: retFunction,
 					parent: path.parent,
-					scope: path.scope,
+					scope: path.scope
 				});
 			}
 
@@ -116,27 +96,26 @@ export default function asyncToBluebird(pluginArg: any) {
 	return {
 		// inherits: syntaxAsyncFunctions,
 		visitor: {
-			Function(path: NodePath, state: any) {
-				const {node, scope} = path;
+			Function(path, state) {
+				const { node, scope } = path;
 				if (!node.async || node.generator) return;
 				const hasAwait = traverse.hasType(node.body, scope, 'AwaitExpression', FUNCTION_TYPES);
 
 				traverse(node, {
 					blacklist: FUNCTION_TYPES,
 
-					AwaitExpression(path2: NodePath) {
+					AwaitExpression(path2) {
 						// eslint-disable-next-line no-param-reassign
 						path2.node.type = 'YieldExpression';
-						path2.node.argument = t.callExpression(
-							addNamed(path, 'bluebird', 'resolve'),
-							[path2.node.argument]
-						);
-					},
+						path2.node.argument = t.callExpression(addNamed(path, 'bluebird', 'resolve'), [path2.node.argument]);
+					}
 				}, scope);
 
 				const isClassOrObjectMethod = path.isClassMethod() || path.isObjectMethod();
 				(isClassOrObjectMethod ? classOrObjectMethod : plainFunction)(path, state, hasAwait);
-			},
-		},
+			}
+		}
 	};
 }
+
+//# sourceMappingURL=main.es6.js.map
