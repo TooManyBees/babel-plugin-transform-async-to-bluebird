@@ -7,7 +7,8 @@
     "babel-helper-function-name": "^6.8.0",
     "babel-plugin-syntax-async-functions": "^6.8.0",
     "babel-template": "^6.9.0",
-    "babel-traverse": "^6.10.4"
+    "babel-traverse": "^6.10.4",
+    "@babel/helper-module-imports": "^7.0.0"
   },
   "devDependencies": {
     "babel-cli": "^6.10.1",

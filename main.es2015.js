@@ -5,6 +5,8 @@ import traverse from 'babel-traverse';
 import nameFunction from 'babel-helper-function-name';
 import template from 'babel-template';
 
+import { addNamed } from '@babel/helper-module-imports';
+
 const FUNCTION_TYPES = [
 	'FunctionDeclaration',
 	'FunctionExpression',
@@ -42,7 +44,7 @@ export default function asyncToBluebird(pluginArg: any) {
 
 		const container = t.functionExpression(null, [], t.blockStatement(body.body), hasAwait);
 		container.shadow = true;
-		const bbImport = state.addImport('bluebird', hasAwait ? 'coroutine' : 'method');
+		const bbImport = addNamed(path, 'bluebird', hasAwait ? 'coroutine' : 'method');
 		body.body = [
 			t.returnStatement(
 				t.callExpression(
@@ -72,7 +74,7 @@ export default function asyncToBluebird(pluginArg: any) {
 
 		if (isDeclaration) node.type = 'FunctionExpression';
 
-		const bbImport = state.addImport('bluebird', hasAwait ? 'coroutine' : 'method');
+		const bbImport = addNamed(path, 'bluebird', hasAwait ? 'coroutine' : 'method');
 		const built = t.callExpression(bbImport, [node]);
 		const container = wrapper({
 			NAME: asyncFnId,
@@ -126,7 +128,7 @@ export default function asyncToBluebird(pluginArg: any) {
 						// eslint-disable-next-line no-param-reassign
 						path2.node.type = 'YieldExpression';
 						path2.node.argument = t.callExpression(
-							state.addImport('bluebird', 'resolve'),
+							addNamed(path, 'bluebird', 'resolve'),
 							[path2.node.argument]
 						);
 					},
